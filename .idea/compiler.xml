@@ -2,8 +2,13 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <option name="BUILD_PROCESS_HEAP_SIZE" value="4000" />
-    <bytecodeTargetLevel>
-      <module name="jdk-source" target="1.8" />
-    </bytecodeTargetLevel>
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="jdk-source" />
+      </profile>
+    </annotationProcessing>
   </component>
 </project>
