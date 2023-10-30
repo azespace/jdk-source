@@ -63,10 +63,10 @@ import java.io.Serializable;
  * methods such as {@code equals}, {@code hashCode} and {@code
  * compareTo} because instances are expected to be mutated, and so are
  * not useful as collection keys.
- *
  * @since 1.8
  * @author Doug Lea
  */
+// 基础属性放在父类中Striped64
 public class LongAdder extends Striped64 implements Serializable {
     private static final long serialVersionUID = 7249069246863182397L;
 
@@ -82,12 +82,22 @@ public class LongAdder extends Striped64 implements Serializable {
      * @param x the value to add
      */
     public void add(long x) {
+        // as 为 cells 数组, b 为 base, v 为 期望值, m 为 cells 数组长度, a 表示当前线程对应的 Cell
         Cell[] as; long b, v; int m; Cell a;
+        // cells 为空表示第一次加载 应该进行base操作 所以用到了 || 或运算
+        // 进行 base cas 操作，失败表示有竞争，需要 初始化或者扩容 cells 数组
         if ((as = cells) != null || !casBase(b = base, b + x)) {
+            // true 表示没有竞争 false 表示有竞争
+            // fase 的时候意味着需要扩容或者重试了
             boolean uncontended = true;
+            // getProbe() & m 为当前线程对应的 Cell 的下标
+            // 判断 cells 数组是否初始化，当前线程是否对应到 Cell
+            // 没有初始化 或者 当前线程对应的 Cell 为 null 则再次进行 cas 重试操作
+            // 还是失败则进行 uncontended = false 判断为发生竞争， longAccumulate 操作
             if (as == null || (m = as.length - 1) < 0 ||
                 (a = as[getProbe() & m]) == null ||
                 !(uncontended = a.cas(v = a.value, v + x)))
+                // 执行累加此操作 LongAccumulator才会传入一个函数 这里是 LongAdder 所以传入的是 null
                 longAccumulate(x, null, uncontended);
         }
     }
@@ -95,6 +105,7 @@ public class LongAdder extends Striped64 implements Serializable {
     /**
      * Equivalent to {@code add(1)}.
      */
+    // 本质上调用的是 add 方法
     public void increment() {
         add(1L);
     }
