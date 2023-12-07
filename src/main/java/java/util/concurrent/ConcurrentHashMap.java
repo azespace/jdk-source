@@ -508,24 +508,28 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * because the top two bits of 32bit hash fields are used for
      * control purposes.
      */
+    // 散列表元素个数最大值
     private static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
      * The default initial table capacity.  Must be a power of 2
      * (i.e., at least 1) and at most MAXIMUM_CAPACITY.
      */
+    // 散列表默认值
     private static final int DEFAULT_CAPACITY = 16;
 
     /**
      * The largest possible (non-power of two) array size.
      * Needed by toArray and related methods.
      */
+    // 数组的最大长度
     static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
     /**
      * The default concurrency level for this table. Unused but
      * defined for compatibility with previous versions of this class.
      */
+    // 并发级别，JDK1.7遗留，目前只在初始化的时候使用到了，可以忽略，不代表并发级别了已经
     private static final int DEFAULT_CONCURRENCY_LEVEL = 16;
 
     /**
@@ -535,6 +539,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * simpler to use expressions such as {@code n - (n >>> 2)} for
      * the associated resizing threshold.
      */
+    // 负载因子，此处不可以修改，HashMap中可以修改
     private static final float LOAD_FACTOR = 0.75f;
 
     /**
@@ -545,6 +550,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * tree removal about conversion back to plain bins upon
      * shrinkage.
      */
+    // 树化阈值，针对元素长度，当某个桶的链表长度达到8的时候，可能出现树化
     static final int TREEIFY_THRESHOLD = 8;
 
     /**
@@ -552,6 +558,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * resize operation. Should be less than TREEIFY_THRESHOLD, and at
      * most 6 to mesh with shrinkage detection under removal.
      */
+    // 红黑树转为链表的阈值 表化阈值的逆过程
     static final int UNTREEIFY_THRESHOLD = 6;
 
     /**
@@ -560,6 +567,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * The value should be at least 4 * TREEIFY_THRESHOLD to avoid
      * conflicts between resizing and treeification thresholds.
      */
+    // 树化阈值，针对table，当哈希表容量也就是桶数量大于该值时，才允许树化
     static final int MIN_TREEIFY_CAPACITY = 64;
 
     /**
@@ -569,37 +577,48 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * excessive memory contention.  The value should be at least
      * DEFAULT_CAPACITY.
      */
+    // 每次扩容或者转移数据时最少的步数，为了避免扩容时线程之间的竞争，将桶分成几个部分，每个线程负责一部分
     private static final int MIN_TRANSFER_STRIDE = 16;
 
     /**
      * The number of bits used for generation stamp in sizeCtl.
      * Must be at least 6 for 32bit arrays.
      */
+    // 协助sizeCtl属性的，用于记录扩容次数的位数 扩容戳
+    // 当满足扩容条件之后，首先会先调用一个方法来获取扩容戳，这个扩容戳比较有意思，要理解扩容戳，必须从二进制的角度来分析
+    //   Integer.numberOfLeadingZeros(n) | (1 << (RESIZE_STAMP_BITS - 1))
+    // | 操作有1则1 16-1 左移15位就是1000000000000000正好可以保证32位int数组从中间分割开，高16位时当前扩容的标记，可以理解为一个纪元 低16位是扩容线程数
     private static int RESIZE_STAMP_BITS = 16;
 
     /**
      * The maximum number of threads that can help resize.
      * Must fit in 32 - RESIZE_STAMP_BITS bits.
      */
+    // 并发扩容的最大线程数
     private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
 
     /**
      * The bit shift for recording size stamp in sizeCtl.
      */
+    // 用于记录扩容戳的位移量
     private static final int RESIZE_STAMP_SHIFT = 32 - RESIZE_STAMP_BITS;
 
     /*
      * Encodings for Node hash fields. See above for explanation.
      */
+    // 标识当前节点是FWD节点
     static final int MOVED     = -1; // hash for forwarding nodes
+    // 标识当前节点是TREE节点 已经树化，且是TreeBin对象代理操作红黑树
     static final int TREEBIN   = -2; // hash for roots of trees
     static final int RESERVED  = -3; // hash for transient reservations
+    // 可以使一个负数通过位运算变成一个正数，但不是取绝对值
     static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash
 
     /** Number of CPUS, to place bounds on some sizings */
     static final int NCPU = Runtime.getRuntime().availableProcessors();
 
     /** For serialization compatibility. */
+    // 对于JDK1.7的序列化兼容
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("segments", Segment[].class),
         new ObjectStreamField("segmentMask", Integer.TYPE),
@@ -770,11 +789,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * The array of bins. Lazily initialized upon first insertion.
      * Size is always a power of two. Accessed directly by iterators.
      */
+    // 散列表，长度总是2的幂次方
     transient volatile Node<K,V>[] table;
 
     /**
      * The next table to use; non-null only while resizing.
      */
+    // 下一个散列表，当扩容时，table会指向这个nextTable
     private transient volatile Node<K,V>[] nextTable;
 
     /**
@@ -782,6 +803,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * but also as a fallback during table initialization
      * races. Updated via CAS.
      */
+    // 没有发生竞争或者处于加锁状态，使用这个进行计值，和LoogAddr类似，使用CAS操作
     private transient volatile long baseCount;
 
     /**
@@ -792,21 +814,28 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * creation, or 0 for default. After initialization, holds the
      * next element count value upon which to resize the table.
      */
+    // -1 表示正在初始化，当前线程需要自旋等待
+    // -N 表示有N-1个线程正在进行扩容操作，当前线程也需要自旋等待
+    // 0  表示还没有初始化，使用默认值DEFAULT_CAPACITY
+    // >0 没有初始化表示初始化大小，已经发生初始化，表示下次扩容触发条件
     private transient volatile int sizeCtl;
 
     /**
      * The next table index (plus one) to split while resizing.
      */
+    // 多线程情况下，扩容过程中，记录当前扩容进度，所有线程都要从这个位置开始处理 执行属于自己的扩容任务
     private transient volatile int transferIndex;
 
     /**
      * Spinlock (locked via CAS) used when resizing and/or creating CounterCells.
      */
+    // 0表示无锁 1表示有锁
     private transient volatile int cellsBusy;
 
     /**
      * Table of counter cells. When non-null, size is a power of 2.
      */
+    // LongAddr中的Cell数组，用于存放计数累加 sum = baseCount + cells[].value
     private transient volatile CounterCell[] counterCells;
 
     // views
@@ -823,9 +852,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     public ConcurrentHashMap() {
     }
 
-    /**
-     * Creates a new, empty map with an initial table size
-     * accommodating the specified number of elements without the need
+     /**
+     * Creates a new, empty map with an initial table
      * to dynamically resize.
      *
      * @param initialCapacity The implementation performs internal
